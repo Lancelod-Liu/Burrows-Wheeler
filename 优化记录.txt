@@ -1,0 +1,226 @@
+Submission time	Sun-27-Apr 19:29:14
+
+[测试机器速度大概是本机9倍]
+问题: 
+1. CircularSuffixArray大文件构造函数崩溃
+2. BurrowsWheeler大文件解码崩溃
+3. MoveToFront大文件编码崩溃
+
+1.暂时没有想法.
+2.修改了BW中的排序算法, 使用了快速排序代替了冒泡排序, 相应地新建了一个char的包装类数组
+3.修改了二进制写的字符串生成方式, 不再使用StringBuilder
+
+Submission time	Sun-27-Apr 22:04:54
+问题: 
+1. CircularSuffixArray大文件构造函数崩溃
+2. BurrowsWheeler大文件解码崩溃
+3. MoveToFront大文件编码崩溃
+4. BurrowsWheeler大文件编码崩溃
+
+20140427 22:27
+首先解决第3条 MTF大文件编码崩溃
+现在使用了 StringBuilder 随时构造字符串, 预计可以大幅提高写入时间[本机堆溢出]
+
+22:37
+MTF的堆内存使用过度, 问题出在StringBuilder
+直接使用了二进制输出, 有足够理由相信已经解决第3条问题
+
+23:28
+第3个问题解决, 仅剩下Timing优化
+问题: 
+1. CircularSuffixArray大文件构造函数崩溃
+2. BurrowsWheeler大文件编码崩溃
+3. BurrowsWheeler大文件编码崩溃
+4. MTF大文件偶尔有一些通不过[暂时忽略]
+
+现在解决第1个问题[16k字符耗时过长]
+可以肯定的是 二重循环的算法是无法解决此问题的
+要找到一种线性时间内构造CSA的方法.
+index[i]对应 <-> str.subString(i)+str.subString(0, i)
+
+	1.遍历输入, 把对应的int[] charSet数组元素加1 获取到第一列顺序和数量
+
+	2.同时构造HashMap<Character, ArrayList<Integer>> firstColumn[映射 出现的字符<->下标]
+	对Map遍历, 如果某个int[]大小不等于1, 说明其需要进一步排序, 
+	此时对这个数组中对应的下标的子字符串进行比较即可
+	3.遍历charSet[], 按照charSet[]数组下标对应的char和值取出HM中的int[], 重构index[];
+上述算法实现后发现速度过慢, 初步先不考虑冒泡效率问题, 怀疑是compareTo效率问题, 自己重写compare(str1, str2)
+同时对2字符串进行遍历, 如果str1[i]==str2[i]就继续遍历, 只要不等于 就返回1[大于]或-1[小于]
+重写后效率并未提升	
+再次怀疑是否substring效率问题
+的确是String的构造耗时问题 所以不能构造任何String
+问题: 给定两个index 如何不构造字符串比较大小?
+方案1: 从各自的index开始 同时遍历2个数组 最大遍历到length - 1 
+由于原算法是n^2复杂度 比较算法至少是n 所以 原算法肯定不成立
+不使用冒泡, 使用3路基数排序 速度有提升 但是估计还不够
+
+Submission time	Mon-28-Apr 11:03:55
+再次上传
+11:24 结果出来
+没有处理Index
+Submission time	Mon-28-Apr 11:47:25
+再次上传
+正确性全部通过
+Timing 36/78
+
+1. CSA 构造时间过长
+2. BW  编码解码时间过长
+3. MTF 基本通过
+
+使用二进制写字节改写了BW.java 应该可以解决问题2.
+Submission time	Mon-28-Apr 12:11:42
+再次上传
+有些格式问题
+Submission time	Mon-28-Apr 12:26:37
+再次上传
+问题: BW 编解码速率在大文件表现不够好
+
+Submission time	Mon-28-Apr 12:55:39
+注释了flush语句再次上传
+
+BW编码太慢的根本原始还是CSA构造太慢
+所以必须解决CSA构造问题
+
+Submission time	Mon-28-Apr 14:00:18
+使用了ArrayList<>[]数组来进行查找 预计比HashMap要快一点 具体看结果
+
+Submission time	Mon-28-Apr 15:17:46
+使用了SuffixArray, 修改了其中的Select函数
+修改了MSD算法
+
+Submission time	Mon-28-Apr 18:07:09
+使用了SuffixArrayX, 修改了其中的less函数
+
+Submission time	Mon-28-Apr 19:44:56
+修改了SuffixArrayX中的Cutoff, 使其与输入大小挂钩
+
+Submission time	Tue-29-Apr 13:18:42
+概览:
+修改了SuffixArrayX中的sort和less函数, 使其每次只对小于Cutoff的首字符相等的字符串组进行插入排序
+详细:
+1. 修改了sort()终止条件: (原始版本为参考字符为'\0'时终止, 这对于字符中出现'\0'的情况会出错)
+	1.1 当[深度d等于长度N]
+	1.2 当[lo >= hi]
+2. 更正了insertion()中的less()函数参数, 和SAX原版本一致.
+3. 对每次从text[]中取字符进行了取模处理, 保证不会溢出.
+4. 修改回了CUTOFF变量, 从而减短每次插入排序的用时
+
+问题: 
+1. BW的解码较慢
+2. MTF的解码偶尔过慢
+
+Submission time	Tue-29-Apr 14:56:50
+问题依旧 但BW速度有所提升
+
+Submission time	Tue-29-Apr 15:22:31
+改进了BW的decode()方法的index查找策略 现在使用数组直接寻址 比HashMap要快
+改进了MTF的decode()方法的读取策略, 现在一次性读取完毕后再对输入进行解码
+
+问题:
+1. BW的解码失败最后4个
+2. MTF的大文件解码失败倒数第二个
+
+Submission time	Tue-29-Apr 16:21:17
+使用堆排序替换了快速排序
+MTF倒数第二个失败
+BW解码依旧速度不够
+
+MTF问题: 如何快速查找index是关键.
+问题分析: 每次写出一个字符 只要和上一次的字符不同 列表都会变化
+Submission time	Tue-29-Apr 16:47:48
+对MTF的indexOf方法进行了缓存处理
+MTF问题解决.
+
+BW问题: 大文件解码失败率50%左右
+要求dickens4kk.txt在2秒内完成解码
+实验发现
+一共需要 3.9秒 ~ 4.0秒
+indices构造 3.0~3.2秒
+4kk的排序 0.5~0.6秒
+next[]构造 0.2~0.3秒
+原始字符串构造 0.4~0.5秒
+
+=> FAILED   512000       0.13       0.03       4.48
+=> FAILED  1024000       0.82       0.10       7.92
+=> FAILED  2048000       1.74       0.25       6.97
+=> FAILED  4096000       3.83       0.64       5.96
+
+Estimated runtime (using last 6 measurements) = 1.61e-09 * N^1.42  (R^2 = 0.97)
+
+=> FAILED   512000       0.13       0.04       3.60
+=> FAILED  1024000       0.82       0.08      10.76
+=> FAILED  2048000       1.78       0.26       6.76
+=> FAILED  4096000       4.81       0.67       7.22
+
+Estimated runtime (using last 6 measurements) = 1.01e-09 * N^1.46  (R^2 = 0.97)
+
+=> FAILED   512000       0.13       0.03       4.96
+=> FAILED  1024000       0.85       0.07      11.85
+=> FAILED  2048000       1.78       0.25       7.08
+=> FAILED  4096000       3.88       0.64       6.05
+
+Estimated runtime (using last 6 measurements) = 1.28e-09 * N^1.44  (R^2 = 0.97)
+
+=> FAILED   512000       0.13       0.03       4.89
+=> FAILED  1024000       0.84       0.08      11.21
+=> FAILED  2048000       1.81       0.25       7.31
+=> FAILED  4096000       3.90       0.63       6.21
+
+Estimated runtime (using last 6 measurements) = 1.19e-09 * N^1.45  (R^2 = 0.97)
+
+Submission time	Tue-29-Apr 20:19:01
+改成ArrayList[]
+
+=> FAILED   256000       0.11       0.02       5.05
+=> FAILED   512000       0.16       0.05       2.98
+=> FAILED  1024000       0.74       0.19       3.82
+=> FAILED  2048000       1.66       0.67       2.47
+=> FAILED  4096000       3.52       1.14       3.09
+
+Estimated runtime (using last 6 measurements) = 3.45e-08 * N^1.21  (R^2 = 0.96)
+
+
+Total: 21/26 tests passed!
+
+=> FAILED   512000       0.13       0.02       5.33
+=> FAILED  1024000       0.33       0.09       3.58
+=> FAILED  2048000       1.03       0.34       3.04
+=> FAILED  4096000       2.45       0.88       2.78
+
+Estimated runtime (using last 6 measurements) = 1.78e-08 * N^1.22  (R^2 = 0.97)
+
+复杂度下降到了1.20
+
+Submission time	Tue-29-Apr 21:33:56
+构造了自己的MyList
+能够自适应地每次增加20%的容量, 不至于过冗余又实现了可变长.
+速度目测提升50%至4kk->2秒左右.
+
+=> FAILED   512000       0.15       0.04       4.08
+=> FAILED  1024000       0.31       0.14       2.21
+=> FAILED  2048000       0.79       0.28       2.78
+=> FAILED  4096000       1.73       0.73       2.36
+
+Estimated runtime (using last 6 measurements) = 3.70e-08 * N^1.16  (R^2 = 1.00)
+
+=> FAILED   512000       0.12       0.03       4.50
+=> FAILED  1024000       0.28       0.08       3.41
+=> FAILED  2048000       0.67       0.26       2.62
+=> FAILED  4096000       1.49       0.68       2.18
+
+Estimated runtime (using last 6 measurements) = 5.43e-08 * N^1.12  (R^2 = 0.99)
+
+修改了MyList的get方法, 速度提升应该有10%左右 大概复杂度在1.08左右
+
+Submission time	Tue-29-Apr 23:01:16
+使用了算法Key-Indexed Counting.
+其count[a[i]]就是第一列的序号
+其i就是最后一列的序号
+在排序的时候就一一对应了
+
+=> passed   512000       0.09       0.05       1.81
+=> passed  1024000       0.31       0.29       1.09
+=> passed  2048000       0.86       0.68       1.27
+=> passed  4096000       2.11       2.15       0.98
+
+Estimated runtime (using last 6 measurements) = 4.08e-11 * N^1.63  (R^2 = 0.99)
